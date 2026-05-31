@@ -15,6 +15,7 @@ from vexiq.api.decisions import router as decisions_router
 from vexiq.api.mistakes import router as mistakes_router
 from vexiq.api.routing import router as routing_router
 from vexiq.api.stats import router as stats_router
+from vexiq.api.sync import router as sync_router
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.include_router(decisions_router)
 app.include_router(mistakes_router)
 app.include_router(routing_router)
 app.include_router(stats_router)
+app.include_router(sync_router)
 
 
 @app.get("/")

@@ -86,11 +86,26 @@ def _get_thresholds(task_type: str | TaskType) -> dict:
     tt_str = task_type.value if isinstance(task_type, TaskType) else str(task_type)
     if tt_str == "code_edit":
         tt_key = "code"
-    elif tt_str in TASK_TYPE_THRESHOLDS:
-        tt_key = tt_str
     else:
-        tt_key = "code"  # Safe default fallback
-    return TASK_TYPE_THRESHOLDS[tt_key]
+        tt_key = tt_str
+
+    settings = get_settings()
+    thresholds = settings.vexiq_task_type_thresholds
+
+    if tt_key in thresholds:
+        return thresholds[tt_key]
+
+    if "code" in thresholds:
+        return thresholds["code"]
+
+    return {
+        "heavy_edit_threshold": 0.30,
+        "manual_rewrite_threshold": 0.50,
+        "time_window_minutes": 10,
+        "immediate_retry_max_seconds": 120,
+        "test_fix_max_minutes": 15,
+    }
+
 
 
 async def resolve_decision_id(

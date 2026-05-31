@@ -7,6 +7,7 @@ weights, time decay half-lives, and VexCTX connection details.
 
 import os
 from functools import lru_cache
+from typing import Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,11 +25,52 @@ class Settings(BaseSettings):
     vexiq_default_provider_priority: str = "claude,gpt-4o,ollama/llama3.2"
     vexctx_base_url: str = "http://localhost:8765"
     vexiq_vexctx_sync_enabled: bool = True
+    vexctx_api_key: str | None = None
+    vexiq_sync_batch_size: int = 100
+    vexiq_sync_timeout_seconds: float = 10.0
+    vexiq_sync_retry_attempts: int = 3
     vexiq_weight_revert: float = 2.0
     vexiq_weight_mistake: float = 1.5
     vexiq_weight_modification: float = 0.5
     vexiq_weight_confidence: float = 0.3
     vexiq_score_decay_halflife_days: int = 30
+    vexiq_task_type_thresholds: dict[str, dict[str, Any]] = {
+        "code": {
+            "heavy_edit_threshold": 0.30,
+            "manual_rewrite_threshold": 0.50,
+            "time_window_minutes": 10,
+            "immediate_retry_max_seconds": 120,
+            "test_fix_max_minutes": 15,
+        },
+        "chat": {
+            "heavy_edit_threshold": 0.55,
+            "manual_rewrite_threshold": 0.75,
+            "time_window_minutes": 5,
+            "immediate_retry_max_seconds": 45,
+            "test_fix_max_minutes": None,
+        },
+        "command": {
+            "heavy_edit_threshold": 0.25,
+            "manual_rewrite_threshold": 0.40,
+            "time_window_minutes": 15,
+            "immediate_retry_max_seconds": 180,
+            "test_fix_max_minutes": 20,
+        },
+        "architecture": {
+            "heavy_edit_threshold": 0.45,
+            "manual_rewrite_threshold": 0.65,
+            "time_window_minutes": 30,
+            "immediate_retry_max_seconds": 300,
+            "test_fix_max_minutes": None,
+        },
+        "artifact": {
+            "heavy_edit_threshold": 0.35,
+            "manual_rewrite_threshold": 0.55,
+            "time_window_minutes": 15,
+            "immediate_retry_max_seconds": 120,
+            "test_fix_max_minutes": None,
+        },
+    }
 
     model_config = SettingsConfigDict(
         env_file=".env",

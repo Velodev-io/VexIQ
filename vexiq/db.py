@@ -164,6 +164,26 @@ async def init_db(db_path: str) -> None:
             );
         """)
 
+        # Create sync_checkpoints table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sync_checkpoints (
+                record_type TEXT PRIMARY KEY,
+                last_synced_timestamp TEXT NOT NULL,
+                last_synced_id TEXT,
+                updated_at TEXT NOT NULL
+            );
+        """)
+
+        # Create labeled_events table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS labeled_events (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                label TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        """)
+
         # Create indices
         await db.execute("""
             CREATE INDEX IF NOT EXISTS idx_ai_decisions_provider_model_task 
@@ -704,3 +724,81 @@ async def list_provider_profiles_from_db(
             for row in rows:
                 profiles.append(row_to_profile(dict(row)))
     return profiles
+
+
+async def get_sync_checkpoint(
+    db_path: str, record_type: str
+) -> tuple[str, str | None] | None:
+    """Retrieves the last synced timestamp and ID checkpoint for a record type."""
+    query = "SELECT last_synced_timestamp, last_synced_id FROM sync_checkpoints WHERE record_type = ?"
+    async with get_db_conn(db_path) as db:
+        async with db.execute(query, (record_type,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0], row[1]
+    return None
+
+
+async def update_sync_checkpoint(
+    db_path: str, record_type: str, timestamp: str, record_id: str | None
+) -> None:
+    """Updates or inserts the synchronization checkpoint for a record type."""
+    now_str = datetime.now(timezone.utc).isoformat()
+    query = """
+        INSERT OR REPLACE INTO sync_checkpoints (record_type, last_synced_timestamp, last_synced_id, updated_at)
+        VALUES (?, ?, ?, ?)
+    """
+    async with get_db_conn(db_path) as db:
+        await db.execute(query, (record_type, timestamp, record_id, now_str))
+        await db.commit()
+
+
+async def reset_sync_checkpoints(
+    db_path: str, record_type: str | None = None
+) -> None:
+    """Resets sync checkpoints. If record_type is provided, resets only that type, otherwise all."""
+    async with get_db_conn(db_path) as db:
+        if record_type:
+            await db.execute("DELETE FROM sync_checkpoints WHERE record_type = ?", (record_type,))
+        else:
+            await db.execute("DELETE FROM sync_checkpoints")
+        await db.commit()
+
+
+async def get_event_label(db_path: str, event_id: str) -> str | None:
+    """Retrieves the manual label for an event (mistake or decision)."""
+    query = "SELECT label FROM labeled_events WHERE event_id = ?"
+    async with get_db_conn(db_path) as db:
+        async with db.execute(query, (event_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0]
+    return None
+
+
+async def set_event_label(
+    db_path: str, event_id: str, event_type: str, label: str
+) -> None:
+    """Inserts or updates a manual label for an event."""
+    now_str = datetime.now(timezone.utc).isoformat()
+    query = """
+        INSERT OR REPLACE INTO labeled_events (event_id, event_type, label, updated_at)
+        VALUES (?, ?, ?, ?)
+    """
+    async with get_db_conn(db_path) as db:
+        await db.execute(query, (event_id, event_type, label, now_str))
+        await db.commit()
+
+
+async def get_labeled_events(db_path: str) -> list[dict]:
+    """Retrieves all labeled events from the database."""
+    query = "SELECT * FROM labeled_events ORDER BY updated_at DESC"
+    events = []
+    async with get_db_conn(db_path) as db:
+        async with db.execute(query) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                events.append(dict(row))
+    return events
+
+

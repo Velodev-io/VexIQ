@@ -9,6 +9,7 @@ from vexiq.core.mistake_tracker import MistakeTracker
 from vexiq.core.provider_profile import ProviderProfileBuilder
 from vexiq.core.routing_engine import RoutingEngine
 from vexiq.core.stats_service import StatsService
+from vexiq.core.vexctx_sync import VexCTXSyncEngine, SyncError
 from vexiq.core.detection_signals import (
     resolve_decision_id,
     detect_file_revert,
@@ -26,6 +27,8 @@ __all__ = [
     "ProviderProfileBuilder",
     "RoutingEngine",
     "StatsService",
+    "VexCTXSyncEngine",
+    "SyncError",
     "resolve_decision_id",
     "detect_file_revert",
     "detect_heavy_edit",
