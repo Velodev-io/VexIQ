@@ -120,6 +120,13 @@ class AIMistake(BaseModel):
     severity: Severity = Severity.medium
     auto_detected: bool = True
     detection_signal: str
+    
+    # Detection fields (optional, stored transitively or for testing and API responses)
+    outcome_type: str | None = None
+    user_corrected: bool | None = None
+    correction_detail: str | None = None
+    feedback_signal: float | None = None
+    is_duplicate: bool = False
 
     @field_validator("provider", "model_id", "session_id", "failure_summary")
     @classmethod
