@@ -19,6 +19,8 @@ class TaskType(str, Enum):
     architecture = "architecture"
     artifact = "artifact"
     other = "other"
+    chat = "chat"
+    code = "code"
 
 
 class UserAction(str, Enum):
@@ -182,10 +184,31 @@ class RoutingDecision(BaseModel):
     task_type: TaskType
     selected_provider: str
     selected_model: str
+    recommended_provider: str = ""
+    recommended_model: str = ""
     score: float | None = None
+    quality_score: float | None = None
+    profile_confidence: str | None = None
+    confidence_factor: float | None = None
     competing_providers: list[dict[str, Any]] = Field(default_factory=list)
+    ranked_candidates: list[dict[str, Any]] = Field(default_factory=list)
     cold_start: bool = False
+    fallback_used: bool = False
+    fallback_reason: str | None = None
+    decision_source: str = "profile_ranked"
     timestamp: datetime
+
+    @model_validator(mode="after")
+    def populate_routing_aliases(self) -> "RoutingDecision":
+        if not self.recommended_provider:
+            self.recommended_provider = self.selected_provider
+        if not self.recommended_model:
+            self.recommended_model = self.selected_model
+        if self.quality_score is None:
+            self.quality_score = self.score
+        if self.score is None:
+            self.score = self.quality_score
+        return self
 
 
 # Request Payload Schemas
@@ -282,3 +305,78 @@ class FlagMistakeRequest(BaseModel):
         if not v.strip():
             raise ValueError("Field must not be empty or whitespace-only")
         return v.strip()
+
+
+class StatsSummaryResponse(BaseModel):
+    total_providers: int
+    total_models: int
+    total_task_types: int
+    total_decisions: int
+    total_mistakes: int
+    overall_success_rate: float
+    overall_quality_score: float
+    fallback_rate: float
+    low_confidence_rate: float
+
+
+class ProviderKPI(BaseModel):
+    provider_id: str
+    total_decisions: int
+    success_rate: float
+    mistake_rate: float
+    correction_rate: float
+    average_quality_score: float
+    average_confidence_factor: float
+    number_of_task_types_covered: int
+    cold_start_provider_count: int
+
+
+class ProviderDetailBreakdown(BaseModel):
+    name: str
+    total_decisions: int
+    success_rate: float
+    mistake_rate: float
+    average_quality_score: float
+
+
+class ProviderDetailResponse(BaseModel):
+    provider_id: str
+    total_decisions: int
+    success_rate: float
+    mistake_rate: float
+    correction_rate: float
+    average_quality_score: float
+    average_confidence_factor: float
+    number_of_task_types_covered: int
+    cold_start_provider_count: int
+    last_seen_timestamp: datetime | None = None
+    decisions_last_7_days: int
+    decisions_last_30_days: int
+    task_type_breakdown: list[ProviderDetailBreakdown]
+    model_breakdown: list[ProviderDetailBreakdown]
+
+
+class TaskTypeKPI(BaseModel):
+    task_type: str
+    total_decisions: int
+    successful_decisions: int
+    mistakes: int
+    average_quality_score: float
+    number_of_profiles: int
+    number_of_providers_with_high_confidence: int
+    fallback_proportion: float
+    coverage_quality: str
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    provider_id: str
+    model_name: str
+    quality_score: float
+    profile_confidence: str
+    confidence_factor: float
+    total_decisions: int
+    success_rate: float
+    mistake_rate: float
+    cold_start: bool
+
